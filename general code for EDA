@@ -1,0 +1,70 @@
+class EDA:
+  #read file.csv
+  def __init__(self, inputFile):
+    self.file=inputFile
+#read csv or pickle files 
+  def generate_df(self):
+    if self.file[-3:]=='csv':
+        self.data_as_csv=pd.read_csv(self.file)
+        return self.data_as_csv
+    elif self.file[-3:]=='pkl':
+        self.data_as_pkl=pd.read_pickle(self.file)
+        return self.data_as_pkl
+
+#reindex
+  def reindex(self):
+    df=self.generate_df()
+    self.reindex=df.reindex(np.random.permutation(df.index))
+    return self.reindex
+#dtypes and descriptions after removing missing values
+  def data_types(self):
+    df=self.generate_df()
+    info=df.describe()
+    return display(df.dtypes, info)
+
+#Deleting variables that are missing more than 90% and drop duplicates
+  def drop_missing_dup(self):
+    df=self.generate_df()
+    drop_missing=df.dropna(thresh=len(df)*0.9, axis='columns')
+    drop_missing_dup=drop_missing.drop_duplicates()
+    return drop_missing_dup
+
+#seperate number and strings...
+  def number(self):
+    df=self.drop_missing_dup()
+    df_number=df.select_dtypes(include='number')
+    df_object=df.select_dtypes(include='object')
+    return df_number, df_object
+
+#rank missing values desc
+  def missing_df(self):
+    df=self.generate_df()
+    missing_df=pd.DataFrame(df.apply(lambda x:sum(x.isnull())/len(df)))
+    missing_df.columns=['pct_missing']
+    missing_df=missing_df.sort_values(by='pct_missing', ascending=False)
+    return missing_df
+
+
+#descending sorting by col
+  def sort(self, col):
+    df=self.generate_df()
+    return df.sort_values(by=col, ascending=False)
+   
+   
+from sklearn.preprocessing import OneHotEncoder
+
+def OHE(df_number, df_object):
+    #df_object=df_object.drop('tc', 1)
+    ohe = OneHotEncoder(sparse=False)
+    transform=ohe.fit_transform(df_object)
+    #add back the colnames
+    colnames=np.array(df_object.columns) +'_'+ ohe.categories_
+    col=[]
+    for i in range(len(colnames)):
+        for j in range(len(colnames[i])):
+            col.append(colnames[i][j])
+    OHE=pd.DataFrame(transform,columns =col)
+    
+    df_number=df_number.drop('tc', 1) # might be in the other df. CHECK first. 
+    df_model=df_number.join(OHE) #join both numeric and OHEed cols.
+    return df_model
